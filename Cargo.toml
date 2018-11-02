@@ -1,0 +1,9 @@
+[package]
+name = "essentials"
+version = "0.1.0"
+authors = ["Bojan Petrović <bojan_petrovic@fastmail.fm>"]
+
+[dependencies]
+
+[profile.release]
+debug = true
