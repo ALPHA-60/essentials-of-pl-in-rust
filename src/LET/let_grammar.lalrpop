@@ -1,0 +1,24 @@
+use std::str::FromStr;
+
+use LET::ast::Exp;
+
+grammar;
+
+pub Program: Exp = {
+  <exp1:Expression> => *exp1
+}
+
+Expression: Box<Exp> = {
+  <n:Num> => Box::new(Exp::Const(n)),
+  "-" "(" <exp1:Expression> "," <exp2:Expression> ")" => Box::new(Exp::Diff(exp1, exp2)),
+  "zero?" "(" <exp1:Expression> ")" => Box::new(Exp::IsZero(exp1)),
+  "if" <exp1:Expression> "then" <exp2:Expression> "else" <exp3:Expression> =>
+     Box::new(Exp::If(exp1, exp2, exp3)),
+  <var:Identifier> => Box::new(Exp::Var(var)),
+  "let" <var:Identifier> "=" <exp1:Expression> "in" <exp2:Expression> =>
+    Box::new(Exp::Let(var, exp1, exp2))
+};
+
+Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+
+Identifier: String = <s:r"[a-z]+"> => s.to_string();

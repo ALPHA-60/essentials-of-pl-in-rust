@@ -1,4 +1,16 @@
+
 #![feature(box_syntax, box_patterns)]
+#[macro_use] extern crate lalrpop_util;
+
+mod LET {
+  pub mod ast;
+  pub mod eval;
+  pub mod parser;
+  pub mod env;
+}
+
+mod PROC { pub mod ast; pub mod eval; pub mod parser; pub mod env; }
+
 
 
 #[derive(Clone)]
@@ -130,4 +142,6 @@ fn main() {
         ExpVal::Int(i) => println!("v: {0}", i),
         ExpVal::Bool(b) => println!("v: {0}", b)
     }
+//    println!("{:?}", calc1::ExpressionParser::new().parse("if zero?(- (   let x = 1 in 2 , 33)) then 1 else 2"));
+
 }

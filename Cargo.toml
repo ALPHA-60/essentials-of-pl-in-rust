@@ -2,8 +2,15 @@
 name = "essentials"
 version = "0.1.0"
 authors = ["Bojan Petrović <bojan_petrovic@fastmail.fm>"]
+build = "build.rs" 
+
 
 [dependencies]
+lalrpop-util = "0.16.1"
+regex = "0.2.0"
+
+[build-dependencies]
+lalrpop = "0.16.1"
 
 [profile.release]
 debug = true
