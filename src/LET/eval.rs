@@ -9,26 +9,26 @@ pub enum ExpVal {
 
 pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
     match exp {
-        &Exp::Const(i) => ExpVal::Num(i),
-        &Exp::Var(ref s) => env.apply(s.to_string()).unwrap(),
-        &Exp::Diff(box ref exp1, box ref exp2) => 
+        Exp::Const(i) => ExpVal::Num(*i),
+        Exp::Var(s) => env.apply(s.to_string()).unwrap(),
+        Exp::Diff(exp1, exp2) => 
             match (value_of(exp1, env), value_of(exp2, env)) {
                 (ExpVal::Num(num1), ExpVal::Num(num2)) => ExpVal::Num(num1 - num2),
                 _ => panic!("difference of non-numbers")
             }
         ,
-        &Exp::IsZero(box ref exp1) => match value_of(exp1, env) {
+        Exp::IsZero(exp1) => match value_of(exp1, env) {
             ExpVal::Num(num1) => ExpVal::Bool(num1 == 0),
             _ => panic!("zero? of non number")
         },
-        &Exp::Let(ref var, box ref exp1, box ref exp2) => {
+        Exp::Let(var, exp1, exp2) => {
             let v = value_of(exp1, env);
             env.extend(var.to_string(), v);
             let v = value_of(exp2, env);
             env.pop_last();
             v
         }
-        &Exp::If(box ref exp1, box ref exp2, box ref exp3) => {
+        Exp::If(exp1, exp2, exp3) => {
             match value_of(exp1, env) {
                 ExpVal::Bool(true) => value_of(exp2, env),
                 ExpVal::Bool(false) => value_of(exp3, env),

@@ -1,46 +1,47 @@
 use PROC::ast::Exp;
 use PROC::env::Env;
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExpVal {
   Num(i32),
   Bool(bool),
-  Proc(String, Exp, Env)
+  Proc(String, Rc<Exp>, Env)
 }
 
 pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
     match exp {
-        &Exp::Const(i) => ExpVal::Num(i),
-        &Exp::Var(ref s) => env.apply(s.to_string()).unwrap(),
-        &Exp::Diff(box  ref exp1, box  ref exp2) =>
-            match (value_of(&exp1, env), value_of(&exp2, env)) {
+        Exp::Const(i) => ExpVal::Num(*i),
+        Exp::Var(s) => env.apply(s.to_string()).unwrap(),
+        Exp::Diff(exp1, exp2) =>
+            match (value_of(exp1, env), value_of(exp2, env)) {
                 (ExpVal::Num(num1), ExpVal::Num(num2)) => ExpVal::Num(num1 - num2),
                 _ => panic!("difference of non-numbers")
             }
         ,
-        &Exp::IsZero(box ref exp1) => match value_of(&exp1, env) {
+        Exp::IsZero(exp1) => match value_of(exp1, env) {
             ExpVal::Num(num1) => ExpVal::Bool(num1 == 0),
             _ => panic!("zero? of non number")
         }
-        &Exp::Let(ref var, box ref exp1, box ref exp2) => {
-            let v = value_of(&exp1, env);
+        Exp::Let(var,  exp1, exp2) => {
+            let v = value_of(exp1, env);
             env.extend(var.to_string(), v);
-            let v = value_of(&exp2, env);
+            let v = value_of(exp2, env);
             env.pop_last();
             v
         }
-        &Exp::If(box ref exp1, box ref exp2, box ref exp3) => {
+        Exp::If(exp1,  exp2,  exp3) => {
             match value_of(exp1, env) {
-                ExpVal::Bool(true) => value_of(&exp2, env),
-                ExpVal::Bool(false) => value_of(&exp3, env),
+                ExpVal::Bool(true) => value_of(exp2, env),
+                ExpVal::Bool(false) => value_of(exp3, env),
                 _ => panic!("testing a non boolean value")
             }
         },
-        &Exp::Proc(ref var, box ref body) => ExpVal::Proc(var.to_string(), body.clone(), env.clone()),
-        &Exp::Call(box ref exp1, box ref exp2) => {
-            match value_of(&exp1, env) {
+        Exp::Proc(var,  body) => ExpVal::Proc(var.to_string(), body.clone(), env.clone()),
+        Exp::Call(exp1,  exp2) => {
+            match value_of(exp1, env) {
                 ExpVal::Proc(var, body, mut saved_env) => {
-                    let v = value_of(&exp2, env);
+                    let v = value_of(exp2, env);
                     saved_env.extend(var, v);
                     let v = value_of(&body, &mut saved_env);
                     saved_env.pop_last();
