@@ -1,0 +1,30 @@
+use std::str::FromStr;
+
+use LETREC::ast::Exp;
+use std::rc::Rc;
+
+grammar;
+
+pub Program: Exp = {
+  <exp1:Expression> => Rc::try_unwrap(exp1).unwrap()
+}
+
+Expression: Rc<Exp> = {
+  <n:Num> => Rc::new(Exp::Const(n)),
+  "-" "(" <exp1:Expression> "," <exp2:Expression> ")" => Rc::new(Exp::Diff(exp1, exp2)),
+  "zero?" "(" <exp1:Expression> ")" => Rc::new(Exp::IsZero(exp1)),
+  "if" <exp1:Expression> "then" <exp2:Expression> "else" <exp3:Expression> =>
+     Rc::new(Exp::If(exp1, exp2, exp3)),
+  <var:Identifier> => Rc::new(Exp::Var(var)),
+  "letrec" <p_name:Identifier> "(" <b_var:Identifier> ")" "="
+    <p_body:Expression> "in" <letrec_body:Expression> =>
+      Rc::new(Exp::LetRec(p_name, b_var, p_body, letrec_body)),
+  "let" <var:Identifier> "=" <exp1:Expression> "in" <exp2:Expression> =>
+    Rc::new(Exp::Let(var, exp1, exp2)),
+  "proc" "(" <var:Identifier> ")" <body:Expression> => Rc::new(Exp::Proc(var, body)),
+  "(" <exp1:Expression> <exp2:Expression> ")" => Rc::new(Exp::Call(exp1, exp2))
+};
+
+Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+
+Identifier: String = <s:r"[a-z]+"> => s.to_string();
