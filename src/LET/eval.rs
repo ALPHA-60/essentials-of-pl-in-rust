@@ -7,11 +7,11 @@ pub enum ExpVal {
   Bool(bool)
 }
 
-pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
+pub fn value_of(exp : &Exp, env: &Env) -> ExpVal {
     match exp {
         Exp::Const(i) => ExpVal::Num(*i),
-        Exp::Var(s) => env.apply(s.to_string()).unwrap(),
-        Exp::Diff(exp1, exp2) => 
+        Exp::Var(s) => env.apply(s).unwrap(),
+        Exp::Diff(exp1, exp2) =>
             match (value_of(exp1, env), value_of(exp2, env)) {
                 (ExpVal::Num(num1), ExpVal::Num(num2)) => ExpVal::Num(num1 - num2),
                 _ => panic!("difference of non-numbers")
@@ -22,11 +22,7 @@ pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
             _ => panic!("zero? of non number")
         },
         Exp::Let(var, exp1, exp2) => {
-            let v = value_of(exp1, env);
-            env.extend(var.to_string(), v);
-            let v = value_of(exp2, env);
-            env.pop_last();
-            v
+            value_of(exp2, &env.extend(var, value_of(exp1, env)))
         }
         Exp::If(exp1, exp2, exp3) => {
             match value_of(exp1, env) {
@@ -45,7 +41,7 @@ mod tests {
     use LET::env::Env;
 
     fn eval(s: &str) -> ExpVal {
-        value_of(&parse(s).unwrap(), &mut Env::empty())
+        value_of(&parse(s).unwrap(), &Env::empty())
     }
 
     #[test]
