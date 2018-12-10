@@ -9,13 +9,10 @@ pub enum ExpVal {
   Proc(String, Rc<Exp>, Env)
 }
 
-pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
+pub fn value_of(exp : &Exp, env: &Env) -> ExpVal {
     match exp {
         Exp::Const(i) => ExpVal::Num(*i),
-        Exp::Var(s) => match env.apply(s.to_string())  {
-            Some(v) => v,
-            None => panic!("unknown variable {}", s)
-        },
+        Exp::Var(s) => env.apply(s).unwrap(),
         Exp::Diff(exp1, exp2) =>
             match (value_of(exp1, env), value_of(exp2, env)) {
                 (ExpVal::Num(num1), ExpVal::Num(num2)) => ExpVal::Num(num1 - num2),
@@ -25,20 +22,12 @@ pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
         Exp::IsZero(exp1) => match value_of(exp1, env) {
             ExpVal::Num(num1) => ExpVal::Bool(num1 == 0),
             _ => panic!("zero? of non number")
-        }
-        Exp::Let(var,  exp1, exp2) => {
-            let v = value_of(exp1, env);
-            env.extend(var.to_string(), v);
-            let v = value_of(exp2, env);
-            env.pop_last();
-            v
         },
-        Exp::LetRec(p_name, b_var, p_body, letrec_body) => {
-            env.extend_rec(p_name.to_string(), b_var.to_string(), p_body.clone());
-            let v = value_of(letrec_body, env);
-            env.pop_last();
-            v
-        }
+        Exp::Let(var, exp1, exp2) => {
+            value_of(exp2, &env.extend(var, value_of(exp1, env)))
+        },
+        Exp::LetRec(p_name, b_var, p_body, letrec_body) =>
+            value_of(letrec_body, &env.extend_rec(p_name, b_var, p_body.clone())),
         Exp::If(exp1,  exp2,  exp3) => {
             match value_of(exp1, env) {
                 ExpVal::Bool(true) => value_of(exp2, env),
@@ -49,12 +38,8 @@ pub fn value_of(exp : &Exp, env: &mut Env) -> ExpVal {
         Exp::Proc(var,  body) => ExpVal::Proc(var.to_string(), body.clone(), env.clone()),
         Exp::Call(exp1,  exp2) => {
             match value_of(exp1, env) {
-                ExpVal::Proc(var, body, mut saved_env) => {
-                    let v = value_of(exp2, env);
-                    saved_env.extend(var, v);
-                    let v = value_of(&body, &mut saved_env);
-                    saved_env.pop_last();
-                    v
+                ExpVal::Proc(var, body, saved_env) => {
+                    value_of(&body, &saved_env.extend(&var, value_of(exp2, env)))
                 }
                 _ => panic!("non proc arg")
             }
@@ -69,10 +54,7 @@ mod tests {
     use LETREC::env::Env;
 
     fn eval(s: &str) -> ExpVal {
-        match parse(s)  {
-            Some(x) => value_of(&x, &mut Env::empty()),
-            None => panic!("could not parse")
-        }
+        value_of(&parse(s).unwrap(), &mut Env::empty())
     }
 
     #[test]
@@ -155,6 +137,7 @@ mod tests {
                                  in let g = proc (z) -(z, x)
                                    in -((f 1), (g 1))"), ExpVal::Num(-100));
     }
+
     #[test]
     fn letrec_double() {
         assert_eq!(eval("
@@ -162,4 +145,5 @@ mod tests {
                   = if zero?(x) then 0 else -((double -(x, 1)), -(0, 2))
           in (double 6)"), ExpVal::Num(12));
     }
+
 }

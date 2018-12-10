@@ -1,51 +1,49 @@
 use LETREC::eval::ExpVal;
 use LETREC::ast::Exp;
+use std::ops::Deref;
 use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
-enum EnvVal {
-    Exp(ExpVal),
-    Rec(String, Rc<Exp>, Env)
+enum EnvList {
+    Empty,
+    Extend(String, ExpVal, Env),
+    ExtendRec(String, String, Rc<Exp>, Env)
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Env(Vec<(String, EnvVal)>);
+pub struct Env(Rc<EnvList>);
 
 impl Env {
-    pub fn empty() -> Env {
-        Env(Vec::new())
+
+    pub fn empty() -> Self {
+        Env(Rc::new(EnvList::Empty))
     }
 
-    pub fn extend(&mut self, var: String , val: ExpVal) {
-        self.0.push((var, EnvVal::Exp(val)));
+
+    pub fn extend(&self, var: &str , val: ExpVal) -> Self {
+        Env(Rc::new(EnvList::Extend(var.to_string(), val, Env(self.0.clone()))))
     }
 
-    pub fn extend_rec(&mut self, proc_name: String , bound_var: String, proc_body: Rc<Exp>) {
-        let e = self.clone();
-        self.0.push((proc_name, EnvVal::Rec(bound_var, proc_body, e)))
+    pub fn extend_rec(&self, p_name: &str , b_var: &str, p_body: Rc<Exp>) -> Self {
+        Env(Rc::new(EnvList::ExtendRec(
+                    p_name.to_string(), b_var.to_string(), p_body.clone(), Env(self.0.clone()))))
     }
 
-    pub fn pop_last(&mut self) -> () {
-        self.0.pop();
-    }
-
-    pub fn apply(&self, var: String) -> Option<ExpVal> {
-        let mut i = self.0.len() as isize - 1;
-        while i != -1 && self.0[i as usize].0 != var {
-            i = i - 1;
-        };
-        if i == -1 {
-            None
-        } else {
-            match &self.0[i as usize].1 {
-                EnvVal::Exp(e) => Some(e.clone()),
-                EnvVal::Rec(bound_var, proc_body, env) => {
-                    let mut env2 = env.clone();
-                    env2.extend_rec(var.to_string(), bound_var.to_string(), proc_body.clone());
-                    let proc = ExpVal::Proc(bound_var.to_string(), proc_body.clone(), env2);
-                    Some(proc)
+    pub fn apply(&self, var: &str) -> Option<ExpVal> {
+        match self.0.deref() {
+            EnvList::Empty => None,
+            EnvList::Extend(v, e, t) =>
+                if *v == var {
+                    Some(e.clone())
+                } else {
+                    t.apply(var)
+                },
+            EnvList::ExtendRec(v, b_var, p_body, t) =>
+                if *v == var {
+                    Some(ExpVal::Proc(b_var.to_string(), (*p_body).clone(), self.clone()))
+                } else {
+                    t.apply(var)
                 }
-            }
         }
     }
 }
